@@ -27,11 +27,11 @@
 
     <article class="podcast-episode" v-for="ep in podcasts" :key="ep.id">
       <div class="ep-bg" aria-hidden="true">
-        <img :src="icon(ep.file)" aria-hidden="true">
+        <img :src="ep.cover" aria-hidden="true">
         <div class="ep-bg-filter"></div>
       </div>
       <div class="ep-aside">
-        <img :src="icon(ep.file)" :alt="'Obal ' + ep.epName" @click="playEpisode(ep)" @mousemove.passive="tilt">
+        <img :src="ep.cover" :alt="'Obal ' + ep.epName" @click="playEpisode(ep)" @mousemove.passive="tilt">
       </div>
       <div class="ep-desc">
         <h3 class="ep-title" @click="playEpisode(ep)">{{ ep.epName }}</h3>
@@ -57,22 +57,10 @@
 </template>
 
 <script>
-import API from 'api'
 import moment from 'moment'
-import cl from 'cloudinary-core'
 import nano from '@/scripts/nano-scroll'
 import tilt from '@/scripts/tilt'
 import podcastExtLinks from '@/components/podcast-ext-links'
-function getUrl (src, params) {
-  const c = cl.Cloudinary.new({cloud_name: 'bio-senpai'})
-  let parameters = {
-    fetch_format: 'auto',
-    height: 600,
-    crop: 'scale',
-    ...params
-  }
-  return c.url(src, parameters)
-}
 
 let wtfs = [
   'Podcast o anime aneb tři šílenci mluví o všem, co je napadne.',
@@ -109,38 +97,99 @@ export default {
     },
     svgAnimated () {
       // Ugly hack
-      return !!window.chrome
+      return true
     }
   },
   methods: {
-    fetchData () {
+    async fetchData () {
       this.$emit('error', false)
-      new API('podcasts')
-        .byIdDesc()
-        .call()
-        .then(res => {
-          this.podcasts = res
-          const linked = this.$route.query.e
-          if (linked) {
-            const ep = this.podcasts.find(e => e.file === `${linked}.mp3`)
-            if (!ep) {
-              this.$emit('error', 'Asi jste dostali špatný odkaz na epizodu podcastu.')
-              return
+      try {
+        // Replace with your actual RSS feed URL
+        const RSS_URL = 'https://feeds.redcircle.com/b1eac1a2-a09d-4a1c-a33f-2d8267365b32'
+        const res = await fetch(RSS_URL)
+        if (!res.ok) throw new Error('Nepodařilo se načíst RSS feed.')
+        const xmlText = await res.text()
+        const parser = new window.DOMParser()
+        const xml = parser.parseFromString(xmlText, 'application/xml')
+        const items = Array.from(xml.querySelectorAll('item'))
+        this.podcasts = items.map(item => {
+          // Extract fields from RSS item
+          const get = tag => item.querySelector(tag) ? item.querySelector(tag).textContent : ''
+          const enclosure = item.querySelector('enclosure')
+          const fileUrl = enclosure ? enclosure.getAttribute('url') : ''
+          const guid = get('guid') || fileUrl
+          const pubDate = get('pubDate')
+          const description = get('description').split('Přijďte si popovídat')[0]
+
+          // Get episode cover from <itunes:image>
+          let cover = ''
+          const itunesImage = item.querySelector('itunes\\:image, image')
+          if (itunesImage && itunesImage.getAttribute('href')) {
+            cover = itunesImage.getAttribute('href')
+          }
+
+          // Parse chapters from description
+          let chapters
+          const chaptersPart = description.split('00:00')[1] // Get part after 00:00
+          if (chaptersPart) {
+            const chapterMatches = chaptersPart.match(/(\d{1,2}:\d{2})\s*–\s*([^0-9]+?)(?=\s*\d{1,2}:\d{2}\s*–|$)/g)
+            if (chapterMatches && chapterMatches.length > 0) {
+              chapters = chapterMatches.map((match, index) => {
+                const parts = match.split('–')
+                const timeStr = parts[0].trim()
+                const name = parts[1].trim()
+
+                // Convert MM:SS to seconds
+                const timeParts = timeStr.split(':')
+                const time = parseInt(timeParts[0]) * 60 + parseInt(timeParts[1])
+
+                return {
+                  name: name,
+                  time: time,
+                  duration: 0 // Will be calculated below
+                }
+              })
+
+              // Calculate durations
+              for (let i = 0; i < chapters.length - 1; i++) {
+                chapters[i].duration = chapters[i + 1].time - chapters[i].time
+              }
+              // Last chapter duration remains 0 (until end of episode)
             }
-            const c = parseInt(this.$route.query.c) - 1
-            if (c) {
-              this.$emit('update:audio-chapter', c)
-            }
-            this.playEpisode(ep)
-            this.$emit('ticker', `Přehrává se epizoda z odkazu: ${ep.epName}${c ? ' – ' + ep.chapters[c].name : ''}`)
+          }
+
+          return {
+            id: guid || fileUrl,
+            file: fileUrl || '',
+            epName: get('title'),
+            epDesc: description.split('00:00')[0],
+            chapters: chapters,
+            pubDate,
+            cover
           }
         })
-        .catch(err => {
-          this.$emit('error', err)
-        })
+        // Handle deep-linking via query param as before
+        const linked = this.$route.query.e
+        if (linked) {
+          const ep = this.podcasts.find(e => e.file === `${linked}.mp3`)
+          if (!ep) {
+            this.$emit('error', 'Asi jste dostali špatný odkaz na epizodu podcastu.')
+            return
+          }
+          const c = parseInt(this.$route.query.c) - 1
+          if (c) {
+            this.$emit('update:audio-chapter', c)
+          }
+          this.playEpisode(ep)
+          this.$emit('ticker', `Přehrává se epizoda z odkazu: ${ep.epName}${c ? ' – ' + (ep.chapters[ c ].name || '') : ''}`)
+        }
+      } catch (err) {
+        this.$emit('error', err.message || err)
+      }
     },
     playEpisode (ep) {
-      this.$emit('update:audio', `//data.bio-senpai.ovi.moe/yoimiru/${ep.file}`)
+      // Always use the full URL from enclosure
+      this.$emit('update:audio', ep.file)
       this.$emit('update:audio-meta', ep)
     },
     copyLink (ep) {
@@ -152,10 +201,12 @@ export default {
       document.body.removeChild(el)
       this.$emit('ticker', 'Odkaz na epizodu zkopírován.')
     },
-    icon (file) {
-      return getUrl('podcast/icons/' + file.substr(0, file.length - 4))
-    },
     date (id) {
+      // Try to parse pubDate if available, else fallback to old logic
+      const ep = this.podcasts.find(e => e.id === id)
+      if (ep && ep.pubDate) {
+        return moment(new Date(ep.pubDate)).locale('cs').format('D.M.YYYY')
+      }
       return moment.unix(parseInt(id.toString().substring(0, 8), 16)).locale('cs').format('D.M.YYYY')
     },
     elevator () {
