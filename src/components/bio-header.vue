@@ -17,7 +17,8 @@
 </template>
 
 <script>
-import API from 'api'
+import gsd from '@/scripts/staticdata'
+let quotes = gsd('quotes')
 export default {
   name: 'bio-header',
   data () {
@@ -43,29 +44,16 @@ export default {
   methods: {
     fetchData () {
       this.quoteVisible = false
-      const api = new API('quotes/random')
-      api.offline()
-        .then(res => {
-          if (res === null) return
-          this.quote = res.quote
-          this.quoteVisible = true
-        })
-        .catch(err => {
-          console.error(err)
-          this.quote = {
-            quote: 'Citát nešlo načíst',
-            author: 'Bio-senpai API'
-          }
-          this.quoteVisible = true
-        })
-      api.call()
-        .then(res => {
-          this.quote = res.quote
-          this.quoteVisible = true
-        })
-        .catch(err => {
-          console.error(err)
-        })
+      if (quotes && quotes.length) {
+        let randomIndex = Math.floor(Math.random() * quotes.length)
+        this.quote = quotes[randomIndex]
+      } else {
+        this.quote = {
+          quote: 'Nefunguje to.',
+          author: 'Tegami'
+        }
+      }
+      this.quoteVisible = true
     }
   }
 }

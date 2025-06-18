@@ -10,48 +10,16 @@
 </template>
 
 <script>
-import API from 'api'
 export default {
   data () {
     return {
-      onlineData: false,
-      fHana: '',
-      fVersion: '4'
+      fHana: 'Haruka',
+      fVersion: '4.S'
     }
   },
   computed: {
     year () {
       return new Date().getFullYear()
-    }
-  },
-  created () {
-    this.fetchVersion()
-  },
-  methods: {
-    fetchVersion () {
-      const api = new API('changelogs')
-        .byIdDesc()
-        .limit(1)
-      api.offline()
-        .then(res => {
-          if (res === null) return
-          if (!this.onlineData) {
-            this.fHana = res[0].hana
-            this.fVersion = res[0].version
-          }
-        })
-        .catch(err => {
-          console.error(err)
-        })
-      api.call()
-        .then(res => {
-          this.onlineData = true
-          this.fHana = res[0].hana
-          this.fVersion = res[0].version
-        })
-        .catch(err => {
-          console.error(err)
-        })
     }
   }
 }
@@ -89,7 +57,7 @@ footer
 
 .footer-title
   font 1.3em Unica One
-  
+
 .version
   font-size .8em
 </style>

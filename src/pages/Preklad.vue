@@ -51,7 +51,7 @@
               <btn variant="red" icon="download">Přeložená videa</btn>
             </a>
             -->
-            <a tabindex="-1" :href="'//data.bio-senpai.ovi.moe/data/' + project.url_title + '/ass.zip'" download>
+            <a tabindex="-1" :href="'/static/data/' + project.url_title + '/ass.zip'" download>
               <btn icon="attachment">Všechny titulky</btn>
             </a>
             <div class="release-info">
@@ -67,7 +67,7 @@
           <div class="episode" v-if="eps.total === 1 && !project.single_type" key="film">
             Film
             <div class="episode-actions">
-              <a tabindex="-1" :href="`//data.bio-senpai.ovi.moe/data/${project.url_title}/%5BBio-senpai%5D%20${ue(project.title)}.ass`" download>
+              <a tabindex="-1" :href="`/static/data/${project.url_title}/%5BBio-senpai%5D%20${ue(project.title)}.ass`" download>
                 <btn icon="attachment"></btn>
               </a>
               <!-- Hello CETA
@@ -80,7 +80,7 @@
           <div class="episode" v-else v-for="i in eps.done" :key="i">
             Epizoda {{i}}
             <div class="episode-actions">
-              <a tabindex="-1" :href="`//data.bio-senpai.ovi.moe/data/${project.url_title}/%5BBio-senpai%5D%20${pad(i)}%20-%20${ue(project.title)}.ass`" download>
+              <a tabindex="-1" :href="`/static/data/${project.url_title}/%5BBio-senpai%5D%20${pad(i)}%20-%20${ue(project.title)}.ass`" download>
                 <btn icon="attachment"></btn>
               </a>
               <!-- Hello CETA
@@ -126,9 +126,9 @@
 </template>
 
 <script>
-import API from 'api'
 import spinner from '@/components/spinner'
 import urlencode from 'urlencode'
+import getStaticData from '@/scripts/staticdata'
 
 let nexts = [
   'Máte titulky, ale ještě tomu něco chybí? Podívejte se, kde sehnat ingredience.',
@@ -145,7 +145,6 @@ export default {
     return {
       ok: false,
       failed: false,
-      onlineData: false,
       entered: false,
       error: false,
       project: {
@@ -226,69 +225,30 @@ export default {
       return (String(num).length === 1) ? '0' + num : num
     },
     relativeData () {
-      let apicall = new API('anime')
-      if (this.project.relatives.prequels) {
-        this.project.relatives.prequels.forEach(prequel => {
-          apicall.where('url_title', prequel)
-        })
-      }
-      if (this.project.relatives.sequels) {
-        this.project.relatives.sequels.forEach(sequel => {
-          apicall.where('url_title', sequel)
-        })
-      }
-      if (this.project.relatives.other) {
-        this.project.relatives.other.forEach(other => {
-          apicall.where('url_title', other)
-        })
-      }
-      apicall.call().then(res => {
-        this.relativeArr = res
-      }).catch(err => {
-        this.$emit('error', err)
+      const allAnime = getStaticData('anime')
+      if (!this.project.relatives) return
+      this.relativeArr = allAnime.filter(rel => {
+        return (
+          (this.project.relatives.prequels && this.project.relatives.prequels.includes(rel.url_title)) ||
+          (this.project.relatives.sequels && this.project.relatives.sequels.includes(rel.url_title)) ||
+          (this.project.relatives.other && this.project.relatives.other.includes(rel.url_title))
+        )
       })
     },
     fetchData () {
-      let cacheFailed = false
-      let liveFailed = false
       this.$emit('error', false)
-      const api = new API('anime')
-        .where('url_title', this.$route.params.anime)
-        .limit(1)
-      api.offline()
-        .then(res => {
-          if (liveFailed && res === null) {
-            this.project.title = 'Tak nic...'
-            this.failed = true
-            this.$emit('error', 'Je nám líto, všechny taktiky selahly. Projekt se nedá načíst.')
-          }
-          if (!this.onlineData) {
-            this.project = res[0]
-            this.ok = true
-            document.title = `${this.project.title} | Bio-senpai`
-          }
-        })
-        .catch(err => {
-          cacheFailed = true
-          console.error(err)
-        })
-      api.call()
-        .then(res => {
-          this.onlineData = true
-          this.project = res[0]
-          this.ok = true
-          document.title = `${this.project.title} | Bio-senpai`
-          if (this.project.relatives) this.relativeData()
-        })
-        .catch(err => {
-          liveFailed = true
-          console.error(err)
-          if (cacheFailed) {
-            this.project.title = 'Tak nic...'
-            this.failed = true
-            this.$emit('error', 'Je nám líto, všechny taktiky selahly. Projekt se nedá načíst.')
-          }
-        })
+      const allAnime = getStaticData('anime')
+      const found = allAnime.find(a => a.url_title === this.$route.params.anime)
+      if (found) {
+        this.project = found
+        this.ok = true
+        document.title = `${this.project.title} | Bio-senpai`
+        if (this.project.relatives) this.relativeData()
+      } else {
+        this.project.title = 'Tak nic...'
+        this.failed = true
+        this.$emit('error', 'Projekt se nedá načíst.')
+      }
     }
   },
   watch: {

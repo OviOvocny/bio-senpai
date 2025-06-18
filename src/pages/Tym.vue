@@ -3,16 +3,6 @@
     <error :error="error" @retry="fetchData"></error>
     <div class="searchfield-wrap">
       <input class="searchfield" type="text" v-model="search" @input="$refs.iso.filter('text')" placeholder="Vyhledat..." >
-      <div class="switches" v-show="search === ''">
-        <fieldset class="radio-group">
-          <input type="radio" v-model="category" value="bio" id="category-bio">
-          <label for="category-bio">Bio-senpai</label>
-          <input type="radio" v-model="category" value="yoi" id="category-yoi">
-          <label for="category-yoi">Yoimiru</label>
-          <input type="radio" v-model="category" value="rip" id="category-rip">
-          <label for="category-rip">Bývalí členové</label>
-        </fieldset>
-      </div>
     </div>
     <isotope ref="iso" :list="team" :options="isoOptions" :class="{'tiles': true, 'hidden': hidden}">
       <member-card v-for="member in team" :data="member" :key="member.url_name"></member-card>
@@ -21,7 +11,7 @@
 </template>
 
 <script>
-import API from 'api'
+import gsd from '@/scripts/staticdata'
 import isotope from 'vueisotope'
 export default {
   submenu: ['Tým', 'Přidat se'],
@@ -67,36 +57,12 @@ export default {
   methods: {
     fetchData () {
       this.$emit('error', false)
-      const api = new API('members')
-      api.offline()
-        .then(res => {
-          if (res === null) return
-          if (!this.onlineData) {
-            this.team = res
-            this.$refs.iso.filter('text')
-          }
-        })
-        .catch(err => {
-          console.error(err)
-          this.$emit('error', new Error('Network Error'))
-        })
-      api.call()
-        .then(res => {
-          this.onlineData = true
-          this.team = res
-          this.$refs.iso.filter('text')
-        })
-        .catch(err => {
-          console.error(err)
-        })
+      this.team = gsd('members')
     }
   },
   watch: {
     category () {
       const cat = this.category
-      this.$refs.iso.arrange({
-        sortAscending: cat === 'bio'
-      })
     },
     search () {
       this.$router.replace(this.search ? '/tym/' + this.search : '/tym')

@@ -12,7 +12,7 @@
         <h2 class="top-anime__title">
           <router-link :to="'/projekty/' + show.url_title">{{show.title}}</router-link>
         </h2>
-        <h3>Zprasil {{show.team.tl[0]}} {{releasedTimeAgo}}</h3>
+        <h3 v-if="show.team.tl && show.team.tl.length">Zprasil {{show.team.tl[0]}} {{releasedTimeAgo}}</h3>
         <span class="top-anime__episodes">Přeloženo {{show.eps.done}} z {{show.eps.total}}</span>
         <div class="top-anime--buttons">
           <a tabindex="-1" :href="`//data.bio-senpai.ovi.moe/data/${show.url_title}/ass.zip`" download>
@@ -21,11 +21,6 @@
           <router-link :to="'/projekty/' + show.url_title">
             <btn icon="magnify">Detail</btn>
           </router-link>
-          <!-- Hello CETA
-          <router-link :to="'/stream/' + show.url_title + '/' + show.eps.done">
-            <btn icon="play">Přehrát</btn>
-          </router-link>
-          -->
         </div>
       </div>
     </div>
@@ -39,26 +34,11 @@
               <path d="M113.195 35C113.195 15.67 128.865 0 148.195 0H248.195C267.525 0 283.195 15.67 283.195 35C283.195 54.33 267.525 70 248.195 70H148.195C128.865 70 113.195 54.33 113.195 35Z"/>
               <path d="M102.506 153.724C85.7656 163.389 64.3599 157.654 54.695 140.913L4.69496 54.3109C-4.97003 37.5706 0.765602 16.165 17.5058 6.49999C34.2461 -3.16499 55.6518 2.57064 65.3167 19.3109L115.317 105.913C124.982 122.654 119.246 144.059 102.506 153.724Z"/>
             </svg>
-            <h2>Nejnovější epizody podcastu</h2>
+            <h2>Zkuste Yoimiru, náš podcast o anime a všem okolo!</h2>
           </div>
           <router-link to="/podcast">
             <btn icon="radio">Podcast</btn>
           </router-link>
-        </div>
-        <div class="yoimiru__episodes">
-          <div class="yoimiru__ep" v-for="ep in home.podcast" :key="ep.id">
-            <div class="yoimiru__ep-flex">
-              <cl-image :src="'podcast/icons/' + ep.file.substr(0, ep.file.length - 4)" width="400"></cl-image>
-              <div class="yoimiru__ep-header">
-                <h3 :class="{'long': isLong(ep.epName)}">{{ep.epName}}</h3>
-                <div v-if="ep.chapters" style="margin-top: .5em; user-select: none">
-                  <icon symbol="format-list-bulleted"></icon> Obsahuje kapitoly
-                </div>
-                <btn icon="play" @click="playEpisode(ep)">Přehrát</btn>
-              </div>
-            </div>
-            <p v-html="ep.epDesc"></p>
-          </div>
         </div>
       </div>
 
@@ -86,43 +66,12 @@
             <p>Pokud vás neodradili naše citáty v hlavičce, tak si určitě budeme rozumět.</p>
           </div>
           <div class="social-links">
-            <router-link to="/kontakt" class="social-links__native">
-              <icon symbol="message"></icon>
-              <span class="social-links__label">Zprávy</span>
-            </router-link>
             <a href="//discord.gg/dcJ3E3y" class="social-links__discord">
               <icon symbol="discord"></icon>
               <span class="social-links__label">Discord</span>
             </a>
-            <!-- <a href="//facebook.com/bio-senpai" class="social-links__facebook">
-              <icon symbol="facebook"></icon>
-              <span class="social-links__label">Facebook</span>
-            </a>
-            <a href="//twitter.com/bio_senpai" class="social-links__twitter">
-              <icon symbol="twitter"></icon>
-              <span class="social-links__label">Twitter</span>
-            </a> -->
           </div>
         </div>
-      </div>
-    </div>
-
-    <div class="top-news">
-      <h2><icon symbol="newspaper"></icon> Co je starého</h2>
-      <div class="top-news__grid">
-        <article class="reading-size-adjust" v-for="article in home.news" :key="article.id">
-          <div class="article__meta">
-            <div class="article__author">
-              <cl-image :src="'team/' + article.author"></cl-image>
-              <h4>{{article.author}}</h4>
-            </div>
-            <div>
-              {{articleDate(article.created)}}
-            </div>
-          </div>
-          <h3>{{article.heading}}</h3>
-          <p v-html="article.body.replace(/(?:\r\n|\r|\n)/g, '<br/>')"></p>
-        </article>
       </div>
     </div>
   </section>
@@ -133,28 +82,26 @@ const randomMascotArray = [
   'wow', 'cat', 'devious', 'lewd', 'nani', 'shady', 'supersmile'
 ]
 
-import API from 'api'
-import moment from 'moment'
+import getStaticData from '@/scripts/staticdata'
 export default {
-  props: {
-    show: Object
-  },
   data () {
     return {
-      onlineData: false,
       ready: false,
       entered: false,
-      home: {
-        anime: {
-          eps: {}
-        }
-      },
-      highPerf: localStorage.getItem('highPerf') === 'true' || !localStorage.getItem('highPerf')
+      highPerf: localStorage.getItem('highPerf') === 'true' || !localStorage.getItem('highPerf'),
+      show: {
+        title: '',
+        url_title: '',
+        team: { tl: [] },
+        eps: { done: 0, total: 0 },
+        updated: 0
+      }
     }
   },
   computed: {
     releasedTimeAgo () {
-      return moment.unix(this.show.updated).locale('cs').fromNow()
+      if (!this.show.updated) return ''
+      return require('moment').unix(this.show.updated).locale('cs').fromNow()
     },
     randomMascot () {
       return new Date().getMonth() === 11 ? 'santa' : randomMascotArray[Math.floor(Math.random() * randomMascotArray.length)]
@@ -167,45 +114,20 @@ export default {
     isLong (str) {
       return str.length > 35
     },
-    fetchData () {
-      this.$emit('error', false)
-      const api = new API('utils/home')
-      api.offline()
-        .then(res => {
-          if (res === null) return
-          if (!this.onlineData) this.home = res.results
-          this.ready = true
-        })
-        .catch(err => {
-          console.error(err)
-          this.$emit('error', new Error('Network Error'))
-        })
-      api.call()
-        .then(res => {
-          this.home = res.results
-          this.onlineData = true
-          this.ready = true
-        })
-        .catch(err => {
-          console.error(err)
-          this.$emit('ticker', 'Jste offline. Obsah nemusí být aktuální.')
-        })
-    },
     handleScroll () {
       if (window.matchMedia('(prefers-reduced-motion)').matches || localStorage.getItem('highPerf') === 'false') return
       let percent = (20 / window.innerHeight) * window.pageYOffset * 2
-      if (window.pageYOffset < window.innerHeight) this.$refs.topImage.$el.style.transform = `translateY(-${(20 - percent)}%)`
+      if (window.pageYOffset < window.innerHeight && this.$refs.topImage) this.$refs.topImage.$el.style.transform = `translateY(-${(20 - percent)}%)`
     },
-    playEpisode (ep) {
-      this.$emit('update:audio', `//data.bio-senpai.ovi.moe/yoimiru/${ep.file}`)
-      this.$emit('update:audio-meta', ep)
-    },
-    articleDate (timestamp) {
-      return moment.unix(timestamp).locale('cs').format('LL')
-    }
+    playEpisode () {},
+    articleDate () {}
   },
   created () {
-    this.fetchData()
+    const animeList = getStaticData('anime')
+    // Use hanayamata as the hero anime
+    const hanayamata = animeList.find(a => a.url_title === 'hanayamata')
+    this.show = hanayamata || (animeList && animeList.length ? animeList[0] : this.show)
+    this.ready = true
     window.addEventListener('scroll', this.handleScroll, {passive: true})
   },
   destroyed () {

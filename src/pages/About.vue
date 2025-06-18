@@ -40,12 +40,11 @@
               </g>
           </svg>
           <div class="top-title">Bio-senpai</div>
-          <div class="top-version">v{{latest.version}} {{latest.hana}}</div>
+          <div class="top-version">v4.S Haruka</div>
 
           <div class="licence">
-            Bio-senpai je progresivní webová aplikace postavená na <a href="https://vuejs.org">Vue 2</a>,
+            Bio-senpai je archivovaná statická webová aplikace postavená na <a href="https://vuejs.org">Vue 2</a>,
             <a href="https://github.com/mzabriskie/axios">Axiosu</a> a <a href="https://cloudinary.com">Cloudinary</a>.
-            O data se nám stará <a href="https://loopback.io">LoopBack</a> a <a href="https://www.mongodb.com">MongoDB</a>.
             Aplikaci distribuuje <a href="https://netlify.com">Netlify</a>.
           </div>
       </div>
@@ -106,11 +105,10 @@
 
 <script>
 let party = 0
-import API from 'api'
+import gsd from '@/scripts/staticdata'
 export default {
   data () {
     return {
-      onlineData: false,
       error: false,
       logs: [],
       latest: {}
@@ -142,29 +140,7 @@ export default {
     },
     fetchData () {
       this.$emit('error', false)
-      const api = new API('changelogs')
-        .byIdDesc()
-      api.offline()
-        .then(res => {
-          if (res === null) return
-          if (!this.onlineData) {
-            this.logs = res
-            this.latest = this.logs[0]
-          }
-        })
-        .catch(err => {
-          console.error(err)
-          this.$emit('error', new Error('Network Error'))
-        })
-      api.call()
-        .then(res => {
-          this.onlineData = true
-          this.logs = res
-          this.latest = this.logs[0]
-        })
-        .catch(err => {
-          console.error(err)
-        })
+      this.logs = gsd('changelogs')
     },
     party () {
       document.body.classList[++party % 3 === 0 ? 'add' : 'remove']('super-ultra-party-mode')

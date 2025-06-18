@@ -12,7 +12,7 @@
 </template>
 
 <script>
-import API from 'api'
+import getStaticData from '@/scripts/staticdata'
 import isotope from 'vueisotope'
 export default {
   submenu: ['Projekty', 'Návrhy', 'Podcast'],
@@ -55,26 +55,7 @@ export default {
   },
   methods: {
     fetchData () {
-      this.$emit('error', false)
-      const api = new API('anime')
-        .byIdDesc()
-      api.offline()
-        .then(res => {
-          if (res === null) return
-          if (!this.onlineData) this.anime = res
-        })
-        .catch(err => {
-          console.error(err)
-          this.$emit('error', new Error('Network Error'))
-        })
-      api.call()
-        .then(res => {
-          this.onlineData = true
-          this.anime = res
-        })
-        .catch(err => {
-          console.error(err)
-        })
+      this.anime = getStaticData('anime')
     }
   },
   components: {

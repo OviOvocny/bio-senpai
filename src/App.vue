@@ -45,7 +45,6 @@
 </template>
 
 <script>
-import API from 'api'
 import bioHeader from './components/bio-header'
 import bioNav from './components/bio-nav'
 import backdrop from './components/backdrop'
@@ -109,30 +108,10 @@ export default {
       }
     },
     fetchData () {
-      const api = new API('anime/random')
-      api.offline()
-        .then(res => {
-          if (res === null) return
-          this.show = res.anime
-        })
-        .catch(err => {
-          console.error(err)
-          this.show = {
-            title: 'Hanayamata',
-            url_title: 'hanayamata'
-          }
-        })
-      api.call()
-        .then(res => {
-          this.show = res.anime
-        })
-        .catch(err => {
-          console.error(err)
-          this.show = {
-            title: 'Hanayamata',
-            url_title: 'hanayamata'
-          }
-        })
+      this.show = {
+        title: 'Hanayamata',
+        url_title: 'hanayamata'
+      }
     },
     updateAudio (val = '') {
       this.audioSource = val
@@ -153,17 +132,6 @@ export default {
     reFetchView () {
       this.$refs.view.fetchData()
     },
-    retryPending () {
-      if (navigator.onLine || !('onLine' in navigator)) {
-        API.retryPending().then(res => {
-          if (res === false) return
-          this.updateTicker(`Odeslali jsme všechny čekající zprávy, přihlášky, apod.`, 'thumb-up')
-        })
-        .catch(err => {
-          console.error(err)
-        })
-      }
-    }
   },
   components: {
     bioHeader,
@@ -182,12 +150,9 @@ export default {
           localStorage.setItem('highPerfTransition', this.highPerfTransition)
         }, 100)
       }
-      this.retryPending()
-      this.checkSW()
     }
   },
   created () {
-    window.addEventListener('online', () => this.retryPending())
     window.addEventListener('keydown', e => {
       if (e.ctrlKey && e.shiftKey) {
         switch (e.code) {
@@ -209,7 +174,6 @@ export default {
     this.fetchData()
   },
   mounted () {
-    this.checkSW()
     if (sessionStorage.getItem('deleted')) {
       sessionStorage.removeItem('deleted')
       this.updateTicker(
