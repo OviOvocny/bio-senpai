@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "anchorme": "^1.1.2",
-    "axios": "^0.16.1",
+    "axios": "^0.21.1",
     "cloudinary-core": "^2.3.0",
     "collect-fps": "^2.0.0",
     "dynamics.js": "^1.1.5",
